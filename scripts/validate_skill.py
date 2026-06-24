@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -18,6 +19,19 @@ SECRET_PATTERNS = [
 ]
 PRIVATE_PATH_MARKER = "/" + "Users/"
 PRIVATE_PATH_RE = re.compile(re.escape(PRIVATE_PATH_MARKER) + r"[A-Za-z0-9._-]+/")
+README_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
+BINARY_SUFFIXES = {
+    ".gif",
+    ".gz",
+    ".jpeg",
+    ".jpg",
+    ".mov",
+    ".mp4",
+    ".png",
+    ".tar",
+    ".webp",
+    ".zip",
+}
 
 
 def fail(message: str) -> None:
@@ -27,6 +41,15 @@ def fail(message: str) -> None:
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def read_validation_text(path: Path) -> str | None:
+    if path.suffix.lower() in BINARY_SUFFIXES:
+        return None
+    try:
+        return read_text(path)
+    except UnicodeDecodeError:
+        return None
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:
@@ -48,8 +71,21 @@ def parse_frontmatter(text: str) -> dict[str, str]:
 
 def iter_files() -> list[Path]:
     ignored_parts = {".git", ".autoreview-reports", ".pytest_cache", "__pycache__"}
+    try:
+        result = subprocess.run(
+            ["git", "ls-files"],
+            cwd=ROOT,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        paths = [ROOT / line for line in result.stdout.splitlines()]
+    except (OSError, subprocess.CalledProcessError):
+        paths = list(ROOT.rglob("*"))
+
     files: list[Path] = []
-    for path in ROOT.rglob("*"):
+    for path in paths:
         if not path.is_file():
             continue
         if any(part in ignored_parts for part in path.parts):
@@ -92,7 +128,9 @@ def validate_agents_metadata(skill_name: str) -> None:
 
 def validate_text_files() -> None:
     for path in iter_files():
-        text = read_text(path)
+        text = read_validation_text(path)
+        if text is None:
+            continue
         rel = path.relative_to(ROOT)
         for index, line in enumerate(text.splitlines(), start=1):
             if line.rstrip() != line:
@@ -106,10 +144,25 @@ def validate_text_files() -> None:
                 fail(f"Secret-like pattern found in {rel}")
 
 
+def validate_readme_media_links() -> None:
+    for path in sorted(ROOT.glob("README*.md")):
+        text = read_text(path)
+        for raw_target in README_IMAGE_RE.findall(text):
+            target = raw_target.strip().split()[0].strip("<>")
+            if re.match(r"^[a-z][a-z0-9+.-]*://", target):
+                continue
+            if target.startswith("#"):
+                continue
+            if not (path.parent / target).exists():
+                rel = path.relative_to(ROOT)
+                fail(f"Missing README media target in {rel}: {target}")
+
+
 def main() -> None:
     skill_name = validate_skill()
     validate_agents_metadata(skill_name)
     validate_text_files()
+    validate_readme_media_links()
     print(f"OK: {skill_name}")
 
 

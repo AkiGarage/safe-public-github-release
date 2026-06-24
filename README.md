@@ -1,3 +1,5 @@
+![Safe Public GitHub Release overview](assets/safe-public-github-release-hero.png)
+
 # Safe Public GitHub Release Skill
 
 <table>
