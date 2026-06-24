@@ -1,0 +1,4 @@
+interface:
+  display_name: "Safe Public GitHub Release"
+  short_description: "Publish clean GitHub releases safely"
+  default_prompt: "Use $safe-public-github-release to prepare and verify a clean public GitHub release."
