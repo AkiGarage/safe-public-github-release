@@ -10,6 +10,7 @@ Initial release of the `safe-public-github-release` Codex skill.
 - Adds GitHub-only public snapshot and no-public-repository-yet flows.
 - Adds optional Python package release guidance for TestPyPI/PyPI Trusted
   Publishing.
+- Adds English and Japanese README files for public review.
 - Adds local validation and CI validation.
 
 ## Validation Before Publishing
@@ -18,7 +19,7 @@ Initial release of the `safe-public-github-release` Codex skill.
 - `git diff --check`
 - public-surface scrub for private paths, handoff files, tokens, generated
   archives, and accidental binary files
-- GitHub-rendered README visual approval
+- GitHub-rendered README and README.ja visual approval
 
 ## Publishing Status
 
